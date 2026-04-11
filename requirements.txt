@@ -7,3 +7,4 @@ pypdf==5.1.0
 markdown==3.7
 pytest==8.3.3
 gunicorn==23.0.0
+tqdm==4.67.1
