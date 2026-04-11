@@ -95,7 +95,7 @@ def run_evaluation():
     print("  Policy RAG Evaluation Suite")
     print("=" * 60)
 
-    with open(QUESTIONS_FILE) as f:
+    with open(QUESTIONS_FILE, encoding="utf-8") as f:
         questions = json.load(f)
 
     results = []
@@ -202,7 +202,9 @@ def run_evaluation():
 - Evaluation set: {n} questions covering PTO, remote work, expenses, security, conduct, performance, onboarding, training, benefits, IT, and out-of-scope detection.
 """
 
-    Path(RESULTS_FILE).write_text(md)
+    results_path = Path(RESULTS_FILE)
+    results_path.parent.mkdir(parents=True, exist_ok=True)
+    results_path.write_text(md, encoding="utf-8")
     print(f"\nResults saved to: {RESULTS_FILE}")
     return results
 
