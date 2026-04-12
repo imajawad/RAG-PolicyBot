@@ -4,39 +4,76 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from langchain_community.vectorstores import Chroma
+import chromadb
 from langchain_core.documents import Document
 
 COLLECTION_NAME = "policy_docs"
+
+
+def _get_client(persist_directory: str):
+    return chromadb.PersistentClient(path=persist_directory)
 
 
 def save_index(chunks, embeddings, persist_directory: str, reset: bool = False) -> int:
     if reset and os.path.isdir(persist_directory):
         shutil.rmtree(persist_directory)
 
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=persist_directory,
-        collection_name=COLLECTION_NAME,
+    client = _get_client(persist_directory)
+
+    # Delete existing collection if it exists
+    try:
+        client.delete_collection(COLLECTION_NAME)
+    except Exception:
+        pass
+
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
     )
-    return vectorstore._collection.count()
 
+    # Embed in batches of 50 to avoid memory issues
+    batch_size = 50
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i : i + batch_size]
+        texts = [c.page_content for c in batch]
+        vectors = embeddings.embed_documents(texts)
+        ids = [f"chunk_{i + j}" for j in range(len(batch))]
+        metadatas = [dict(c.metadata) for c in batch]
 
-def load_index(persist_directory: str, embeddings):
-    if not os.path.isdir(persist_directory):
-        raise RuntimeError(
-            f"Vector store not found at '{persist_directory}'. "
-            "Please run: python rag/ingest.py"
+        collection.add(
+            ids=ids,
+            embeddings=vectors,
+            documents=texts,
+            metadatas=metadatas,
         )
-    return Chroma(
-        persist_directory=persist_directory,
-        embedding_function=embeddings,
-        collection_name=COLLECTION_NAME,
-    )
+
+    return collection.count()
 
 
 def search_index(question: str, embeddings, persist_directory: str, k: int = 5):
-    vectorstore = load_index(persist_directory, embeddings)
-    results = vectorstore.similarity_search_with_relevance_scores(question, k=k)
-    return results
+    client = _get_client(persist_directory)
+    collection = client.get_collection(
+        name=COLLECTION_NAME,
+        embedding_function=None,
+    )
+
+    query_vector = embeddings.embed_query(question)
+
+    results = collection.query(
+        query_embeddings=[query_vector],
+        n_results=k,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    docs_and_scores = []
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
+
+    for text, meta, distance in zip(documents, metadatas, distances):
+        # ChromaDB cosine distance → similarity score (1 - distance)
+        score = 1.0 - distance
+        doc = Document(page_content=text, metadata=meta)
+        docs_and_scores.append((doc, score))
+
+    return docs_and_scores

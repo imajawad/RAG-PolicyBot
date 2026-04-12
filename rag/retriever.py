@@ -60,21 +60,19 @@ def _get_embeddings():
 
 
 def _get_vectorstore():
-    global _vectorstore
-    if _vectorstore is None:
-        if not os.path.exists(CHROMA_PATH):
-            raise RuntimeError(
-                f"Vector store not found at '{CHROMA_PATH}'. "
-                "Please run: python rag/ingest.py"
-            )
-        from rag.vector_index import load_index
-        _vectorstore = load_index(CHROMA_PATH, _get_embeddings())
-    return _vectorstore
+    # No longer needed — search_index handles its own client
+    if not os.path.exists(CHROMA_PATH):
+        raise RuntimeError(
+            f"Vector store not found at '{CHROMA_PATH}'. "
+            "Please run: python rag/ingest.py"
+        )
+    return CHROMA_PATH
 
 
 def retrieve(question: str, k: int = TOP_K):
-    store = _get_vectorstore()
-    results = store.similarity_search_with_relevance_scores(question, k=k)
+    store_path = _get_vectorstore()
+    from rag.vector_index import search_index
+    results = search_index(question, _get_embeddings(), store_path, k=k)
     filtered = [(doc, score) for doc, score in results if score > 0.2]
     return filtered if filtered else results[:2]
 
