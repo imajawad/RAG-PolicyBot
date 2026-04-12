@@ -10,6 +10,25 @@ from langchain_core.documents import Document
 COLLECTION_NAME = "policy_docs"
 
 
+class _PolicyEmbedFn:
+    """
+    Thin wrapper that makes PolicyEmbeddings look like a chromadb
+    EmbeddingFunction.  We pass this to get_or_create_collection /
+    get_collection so chromadb NEVER tries to load its built-in
+    DefaultEmbeddingFunction (which requires onnxruntime).
+
+    Note: since we always supply query_embeddings / embeddings
+    explicitly in .add() and .query() calls, chromadb will never
+    actually *call* this function — it's just stored as metadata.
+    """
+
+    def __init__(self, policy_embeddings):
+        self._pe = policy_embeddings
+
+    def __call__(self, input):          # noqa: A002
+        return self._pe.embed_documents(list(input))
+
+
 def _get_client(persist_directory: str):
     return chromadb.PersistentClient(path=persist_directory)
 
@@ -19,6 +38,7 @@ def save_index(chunks, embeddings, persist_directory: str, reset: bool = False) 
         shutil.rmtree(persist_directory)
 
     client = _get_client(persist_directory)
+    ef = _PolicyEmbedFn(embeddings)
 
     # Delete existing collection if it exists
     try:
@@ -29,6 +49,7 @@ def save_index(chunks, embeddings, persist_directory: str, reset: bool = False) 
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
+        embedding_function=ef,          # ← our EF, not chromadb's DefaultEF
     )
 
     # Embed in batches of 50 to avoid memory issues
@@ -52,8 +73,11 @@ def save_index(chunks, embeddings, persist_directory: str, reset: bool = False) 
 
 def search_index(question: str, embeddings, persist_directory: str, k: int = 5):
     client = _get_client(persist_directory)
+    ef = _PolicyEmbedFn(embeddings)
+
     collection = client.get_collection(
         name=COLLECTION_NAME,
+        embedding_function=ef,          # ← our EF, not chromadb's DefaultEF
     )
 
     query_vector = embeddings.embed_query(question)

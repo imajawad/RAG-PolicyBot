@@ -6,7 +6,7 @@ services:
     name: policy-rag
     runtime: python
     buildCommand: "pip install -r requirements.txt && python rag/ingest.py"
-    startCommand: "gunicorn app:app --workers 2 --timeout 120"
+    startCommand: "gunicorn app:app --workers 1 --timeout 120 --preload"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -18,3 +18,5 @@ services:
         value: chroma_db
       - key: POLICIES_PATH
         value: policies
+      - key: ANONYMIZED_TELEMETRY
+        value: "false"       # Suppress chromadb telemetry noise in logs

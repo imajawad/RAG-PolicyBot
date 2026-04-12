@@ -32,6 +32,15 @@ def _vector_store_ready() -> bool:
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 
+# Pre-warm the embedding model so the first user query doesn't timeout.
+# This runs once per gunicorn worker at startup.
+try:
+    from rag.retriever import _get_embeddings
+    _get_embeddings()
+    logger.info("Embedding model pre-warmed successfully.")
+except Exception as _e:
+    logger.warning(f"Could not pre-warm embedding model: {_e}")
+
 
 @app.route("/")
 def index():
