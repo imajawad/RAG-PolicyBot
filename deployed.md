@@ -10,9 +10,8 @@ To start: `python app.py`
 ## Production Deployment (Render)
 
 Once deployed to Render, the public URL will be:
-**https://policy-rag.onrender.com**
+**https://rag-policybot.onrender.com**
 
-*(Update this URL after deployment)*
 
 ## Deployment Steps
 

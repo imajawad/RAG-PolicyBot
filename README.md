@@ -9,7 +9,7 @@ A Retrieval-Augmented Generation (RAG) application that answers employee questio
 | Component | Choice | Reason |
 |---|---|---|
 | LLM | Groq (llama-3.3-70b-versatile) | Free tier, extremely fast |
-| Embeddings | sentence-transformers/all-MiniLM-L6-v2 | Strong semantic retrieval quality on small corpora |
+| Embeddings | HuggingFace all-MiniLM-L6-v2 | Free, local CPU, semantic similarity |
 | Vector Store | Local JSON index | Free, zero setup, persistent |
 | Framework | LangChain | Best RAG ecosystem |
 | Web App | Flask | Lightweight, simple |
