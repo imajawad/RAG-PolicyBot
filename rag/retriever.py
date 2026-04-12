@@ -1,9 +1,5 @@
 """
 retriever.py - RAG pipeline: retrieve + generate
-
-Retrieves top-k relevant chunks from the local JSON index,
-injects them into a prompt, and calls Groq LLM (free tier).
-Includes guardrails: refuses off-topic questions, cites sources.
 """
 
 import os
@@ -13,18 +9,13 @@ from pathlib import Path
 
 if __package__ in (None, ""):
     import sys
-
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 
-from rag.embeddings import PolicyEmbeddings
-from rag.vector_index import search_index
-
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Config
 CHROMA_PATH = os.getenv("CHROMA_PATH", "chroma_db")
 TOP_K       = int(os.getenv("TOP_K", 5))
 GROQ_MODEL  = "llama-3.3-70b-versatile"
@@ -45,34 +36,31 @@ POLICY CONTEXT:
 {context}
 """
 
-# Module-level cache — loaded once, reused on every request
-_embeddings  = None
-_vectorstore = None
+# Module-level cache
+_embeddings = None
 
 
 def _get_embeddings():
     global _embeddings
     if _embeddings is None:
-        logger.info("Loading MiniLM embedding model (once)...")
+        logger.info("Loading embedding model (once)...")
+        from rag.embeddings import PolicyEmbeddings
         _embeddings = PolicyEmbeddings()
         logger.info("Embedding model loaded.")
     return _embeddings
 
 
-def _get_vectorstore():
-    # No longer needed — search_index handles its own client
+def retrieve(question: str, k: int = TOP_K):
+    """Retrieve top-k relevant chunks with similarity scores."""
     if not os.path.exists(CHROMA_PATH):
         raise RuntimeError(
             f"Vector store not found at '{CHROMA_PATH}'. "
             "Please run: python rag/ingest.py"
         )
-    return CHROMA_PATH
 
-
-def retrieve(question: str, k: int = TOP_K):
-    store_path = _get_vectorstore()
     from rag.vector_index import search_index
-    results = search_index(question, _get_embeddings(), store_path, k=k)
+    results = search_index(question, _get_embeddings(), CHROMA_PATH, k=k)
+
     filtered = [(doc, score) for doc, score in results if score > 0.2]
     return filtered if filtered else results[:2]
 
@@ -109,8 +97,7 @@ def generate(question: str, context: str) -> str:
     if not api_key or api_key.strip() == "your_groq_api_key_here":
         return (
             "Demo mode: No GROQ_API_KEY set. "
-            "Add your free Groq API key to the .env file (get one at https://console.groq.com). "
-            "The vector store IS working — this is only a placeholder answer.\n\n"
+            "Add your free Groq API key to the .env file.\n\n"
             "Sources: (demo mode)"
         )
 
@@ -130,22 +117,19 @@ def generate(question: str, context: str) -> str:
         ("human", "{question}"),
     ])
 
-    chain  = prompt | llm | StrOutputParser()
+    chain = prompt | llm | StrOutputParser()
     return chain.invoke({"context": context, "question": question})
 
 
 def get_rag_response(question: str, k: int = TOP_K) -> dict:
-    """
-    Full RAG pipeline: retrieve -> build context -> generate.
-    Returns dict with answer, sources, snippets, latency.
-    """
+    """Full RAG pipeline: retrieve -> build context -> generate."""
     start = time.perf_counter()
 
     try:
-        results                  = retrieve(question, k=k)
+        results                    = retrieve(question, k=k)
         context, sources, snippets = build_context(results)
-        answer                   = generate(question, context)
-        latency                  = round(time.perf_counter() - start, 3)
+        answer                     = generate(question, context)
+        latency                    = round(time.perf_counter() - start, 3)
 
         return {
             "answer":   answer,
