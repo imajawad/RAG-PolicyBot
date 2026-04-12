@@ -5,7 +5,18 @@ Write-Host "============================================" -ForegroundColor Cyan
 
 # Step 1
 Write-Host "`n[1/4] Creating virtual environment..." -ForegroundColor Yellow
-python -m venv venv
+if (Get-Command py -ErrorAction SilentlyContinue) {
+	try {
+		py -3.11 -c "import sys" *> $null
+		py -3.11 -m venv venv
+	}
+	catch {
+		Write-Host "Python 3.11 not found, using default python interpreter..." -ForegroundColor DarkYellow
+		python -m venv venv
+	}
+} else {
+	python -m venv venv
+}
 & .\venv\Scripts\Activate.ps1
 
 # Step 2

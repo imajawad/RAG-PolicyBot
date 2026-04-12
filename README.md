@@ -9,7 +9,7 @@ A Retrieval-Augmented Generation (RAG) application that answers employee questio
 | Component | Choice | Reason |
 |---|---|---|
 | LLM | Groq (llama-3.3-70b-versatile) | Free tier, extremely fast |
-| Embeddings | Lightweight local hashing embedder | Free, runs locally, no API key needed |
+| Embeddings | sentence-transformers/all-MiniLM-L6-v2 | Strong semantic retrieval quality on small corpora |
 | Vector Store | Local JSON index | Free, zero setup, persistent |
 | Framework | LangChain | Best RAG ecosystem |
 | Web App | Flask | Lightweight, simple |
@@ -26,7 +26,10 @@ cd policy-rag
 
 ### 2. Create virtual environment
 ```bash
-python -m venv venv
+# macOS/Linux:
+python3.11 -m venv venv    # fallback: python -m venv venv
+# Windows PowerShell (recommended):
+py -3.11 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 ```
 
@@ -49,7 +52,7 @@ Copy-Item .env.example .env
 ```bash
 python rag/ingest.py
 ```
-This loads all 10 policy documents from `policies/`, chunks them, embeds them with a lightweight local model, and stores them in `chroma_db/index.json`. The first run is quick and does not download any model weights.
+This loads all 10 policy documents from `policies/`, chunks them, embeds them with `sentence-transformers/all-MiniLM-L6-v2`, and stores them in `chroma_db/index.json`. The first run may download model weights.
 
 ### 6. Run the application
 ```bash
@@ -124,6 +127,9 @@ policy-rag/
 python rag/evaluator.py
 # Results saved to eval/results.md
 ```
+
+If you switch embedding/chunking settings, rerun both ingestion and evaluation so
+`eval/results.md` reflects the current system configuration.
 
 ---
 

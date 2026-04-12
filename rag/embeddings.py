@@ -1,41 +1,47 @@
-"""Lightweight local embedding helpers for the policy RAG stack."""
+"""Embedding helpers for the policy RAG stack."""
 
 from __future__ import annotations
 
-import hashlib
-import math
-import re
-from collections import Counter
+import os
 
 from langchain_core.embeddings import Embeddings
 
 
-class SimpleHashEmbeddings(Embeddings):
-    """Deterministic bag-of-words embeddings that work without ML runtimes."""
+class PolicyEmbeddings(Embeddings):
+    """MiniLM sentence-transformer embeddings for retrieval quality."""
 
-    def __init__(self, dimension: int = 384):
-        self.dimension = dimension
+    def __init__(self, model_name: str | None = None):
+        self.model_name = model_name or os.getenv(
+            "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+        )
+        self._model = None
 
-    def _tokenize(self, text: str) -> list[str]:
-        return re.findall(r"[a-z0-9]+", text.lower())
-
-    def _vectorize(self, text: str) -> list[float]:
-        counts = Counter(self._tokenize(text))
-        vector = [0.0] * self.dimension
-
-        for token, count in counts.items():
-            digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
-            index = int.from_bytes(digest, "big") % self.dimension
-            vector[index] += float(count)
-
-        norm = math.sqrt(sum(value * value for value in vector))
-        if norm:
-            vector = [value / norm for value in vector]
-
-        return vector
+    def _get_model(self):
+        if self._model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Missing dependency 'sentence-transformers'. "
+                    "Run: pip install -r requirements.txt"
+                ) from exc
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._vectorize(text) for text in texts]
+        model = self._get_model()
+        vectors = model.encode(
+            texts,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        )
+        return vectors.tolist()
 
     def embed_query(self, text: str) -> list[float]:
-        return self._vectorize(text)
+        model = self._get_model()
+        vector = model.encode(
+            [text],
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        )[0]
+        return vector.tolist()

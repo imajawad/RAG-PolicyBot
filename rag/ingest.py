@@ -9,6 +9,8 @@ and stores in a local JSON vector index.
 import os
 import shutil
 import logging
+import re
+from html import unescape
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -20,8 +22,9 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
-from rag.embeddings import SimpleHashEmbeddings
+from rag.embeddings import PolicyEmbeddings
 from rag.vector_index import save_index
 
 load_dotenv()
@@ -51,6 +54,18 @@ def load_documents(policies_path: str):
         loaded = loader.load()
         docs.extend(loaded)
         logger.info(f"  Loaded {len(loaded)} files matching {ext}")
+
+    # Load HTML if any
+    html_files = list(Path(policies_path).glob("**/*.html")) + list(
+        Path(policies_path).glob("**/*.htm")
+    )
+    for html_path in html_files:
+        raw_html = html_path.read_text(encoding="utf-8", errors="ignore")
+        text = unescape(re.sub(r"<[^>]+>", " ", raw_html))
+        text = re.sub(r"\s+", " ", text).strip()
+        docs.append(Document(page_content=text, metadata={"source": str(html_path)}))
+    if html_files:
+        logger.info(f"  Loaded {len(html_files)} HTML files")
 
     # Load PDFs if any
     pdf_files = list(Path(policies_path).glob("**/*.pdf"))
@@ -96,8 +111,8 @@ def build_vectorstore(chunks, reset: bool = False):
 
     os.makedirs(CHROMA_PATH, exist_ok=True)
 
-    logger.info("Loading local embedding model")
-    embeddings = SimpleHashEmbeddings()
+    logger.info("Loading embedding model: sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = PolicyEmbeddings()
 
     logger.info("Building local vector index...")
     vector_count = save_index(

@@ -5,7 +5,13 @@ echo ============================================
 
 :: Step 1 - create venv
 echo [1/4] Creating virtual environment...
-python -m venv venv
+py -3.11 -c "import sys" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+	py -3.11 -m venv venv
+) else (
+	echo Python 3.11 not found, using default python interpreter...
+	python -m venv venv
+)
 call venv\Scripts\activate
 
 :: Step 2 - upgrade pip

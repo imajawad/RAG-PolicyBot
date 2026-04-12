@@ -18,7 +18,7 @@ if __package__ in (None, ""):
 
 from dotenv import load_dotenv
 
-from rag.embeddings import SimpleHashEmbeddings
+from rag.embeddings import PolicyEmbeddings
 from rag.vector_index import search_index
 
 load_dotenv()
@@ -53,8 +53,8 @@ _vectorstore = None
 def _get_embeddings():
     global _embeddings
     if _embeddings is None:
-        logger.info("Loading local embedding model (once)...")
-        _embeddings = SimpleHashEmbeddings()
+        logger.info("Loading MiniLM embedding model (once)...")
+        _embeddings = PolicyEmbeddings()
         logger.info("Embedding model loaded.")
     return _embeddings
 
