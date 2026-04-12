@@ -60,19 +60,21 @@ def _get_embeddings():
 
 
 def _get_vectorstore():
-    chroma_path = Path(CHROMA_PATH)
-    if not chroma_path.is_dir() or not (chroma_path / "index.json").is_file():
-        raise RuntimeError(
-            f"Vector store not found at '{CHROMA_PATH}'. "
-            "Please run: python rag/ingest.py"
-        )
-    return chroma_path
+    global _vectorstore
+    if _vectorstore is None:
+        if not os.path.exists(CHROMA_PATH):
+            raise RuntimeError(
+                f"Vector store not found at '{CHROMA_PATH}'. "
+                "Please run: python rag/ingest.py"
+            )
+        from rag.vector_index import load_index
+        _vectorstore = load_index(CHROMA_PATH, _get_embeddings())
+    return _vectorstore
 
 
 def retrieve(question: str, k: int = TOP_K):
-    """Retrieve top-k relevant chunks with similarity scores."""
-    store_path = _get_vectorstore()
-    results = search_index(question, _get_embeddings(), str(store_path), k=k)
+    store = _get_vectorstore()
+    results = store.similarity_search_with_relevance_scores(question, k=k)
     filtered = [(doc, score) for doc, score in results if score > 0.2]
     return filtered if filtered else results[:2]
 

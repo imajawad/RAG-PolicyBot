@@ -55,18 +55,18 @@ Flask /chat endpoint  ──→  JSON Response to UI
 
 ---
 
-### 1.4 Vector Store: Local JSON Index
+### 1.4 Vector Store: ChromaDB (Local)
 
-**Choice:** A local JSON index written to `chroma_db/index.json`
+**Choice:** ChromaDB with local persistence (`persist_directory="chroma_db"`)
 
 **Rationale:**
 - **Completely free** — no cloud account, no API key, zero cost
-- **Persistent** — stores embedded chunks to disk, so ingestion only runs once
-- **Easy setup** — no database server and no native vector-store dependency chain
-- **Sufficient scale** — our corpus is tiny, so a simple on-disk index is enough
-- **Transparent** — the stored data is human-readable JSON, which helps debugging
-
-**Alternative considered:** ChromaDB and Pinecone. Rejected because both added unnecessary dependency or operational complexity for a small local demo.
+- **Persistent** — stores vectors to disk; ingestion only runs once
+- **Easy setup** — single `pip install chromadb`, no Docker or server required
+- **Native LangChain integration** — `Chroma.from_documents()` handles 
+  embedding storage and retrieval in one call
+- **Sufficient scale** — our corpus (~400 chunks) is well within 
+  ChromaDB's local capacity
 
 ---
 
