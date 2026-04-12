@@ -20,7 +20,7 @@ A Retrieval-Augmented Generation (RAG) application that answers employee questio
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/policy-rag.git
+git clone https://github.com/imajawad/policy-rag.git
 cd policy-rag
 ```
 
