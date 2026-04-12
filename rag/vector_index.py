@@ -54,7 +54,6 @@ def search_index(question: str, embeddings, persist_directory: str, k: int = 5):
     client = _get_client(persist_directory)
     collection = client.get_collection(
         name=COLLECTION_NAME,
-        embedding_function=None,
     )
 
     query_vector = embeddings.embed_query(question)

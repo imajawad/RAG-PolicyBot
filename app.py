@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 def _vector_store_ready() -> bool:
     chroma_path = Path(os.getenv("CHROMA_PATH", "chroma_db"))
-    return chroma_path.is_dir() and (chroma_path / "index.json").is_file()
+    # ChromaDB 0.6.x uses chroma.sqlite3 (not index.json)
+    return chroma_path.is_dir() and (
+        (chroma_path / "chroma.sqlite3").is_file()
+        or any(chroma_path.iterdir())  # fallback: dir exists and is non-empty
+    )
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
